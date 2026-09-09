@@ -201,6 +201,25 @@ TEST(BST, Erase)
     EXPECT_TRUE(bst.Contains(9));
     EXPECT_EQ(bst.Height(), 3);
 
+    EXPECT_TRUE(bst.Erase(3));
+    EXPECT_FALSE(bst.Contains(3));
+    EXPECT_TRUE(bst.Contains(1));
+    EXPECT_TRUE(bst.Contains(4));
+    
     EXPECT_TRUE(bst.Erase(5));
     EXPECT_FALSE(bst.Contains(5));
+}
+
+TEST(BST, Erase2)
+{
+    BinarySearchTree<int> bst;
+    for (const int item : { 5, 3, 4 }) {
+        bst.Insert(item);
+    }
+
+    EXPECT_EQ(bst.Height(), 3);
+    EXPECT_TRUE(bst.Erase(3));
+    EXPECT_FALSE(bst.Contains(3));
+    EXPECT_TRUE(bst.Contains(4));
+    EXPECT_EQ(bst.Height(),2);
 }
