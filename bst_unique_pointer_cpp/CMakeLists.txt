@@ -6,6 +6,8 @@ project(
         LANGUAGES CXX
 )
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_library(
     BSTLib 
         INTERFACE
@@ -21,6 +23,17 @@ target_sources(
     BSTLib
         INTERFACE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/bst.h
+)
+
+add_executable(
+    BST
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+)
+
+target_link_libraries(
+    BST
+        PRIVATE
+            BSTLib
 )
 
 include(FetchContent)

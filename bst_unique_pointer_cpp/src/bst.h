@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -19,13 +20,16 @@ private:
     struct Node
     {
         explicit Node(const T& value);
+        Node(const Node&) = delete;
+        Node(Node&&) = delete;
+        ~Node() {
+            std::cout << "Node(" << value << ") deleted" << std::endl;
+        }
 
         T value;
         std::unique_ptr<Node> left{ nullptr };
         std::unique_ptr<Node> right{ nullptr };
     };
-
-    class BSTException : public std::exception {};
 
 public:
     BinarySearchTree() = default;
@@ -74,7 +78,6 @@ template<typename T>
 BinarySearchTree<T>::BinarySearchTree(BinarySearchTree&& other) noexcept
     : root{ std::move(other.root) }
 {
-    other.root = nullptr;
 }
 
 template<typename T>
@@ -82,7 +85,7 @@ BinarySearchTree<T>& BinarySearchTree<T>::operator=(const BinarySearchTree& othe
 {
     if (this == &other) return *this;
 
-    delete root.release();
+    root.reset();
     other.Traverse<Traversal::PreOrder>([this](const T& item){ this->Insert(item); });
     return *this;
 }
@@ -92,8 +95,7 @@ BinarySearchTree<T>& BinarySearchTree<T>::operator=(BinarySearchTree&& other) no
 {
     if (this == &other) return *this;
 
-    delete root.release();
-    std::swap(root, other.root);
+    root = std::move(other.root);
     return *this;
 }
 
@@ -106,49 +108,34 @@ bool BinarySearchTree<T>::Empty() const
 template<typename T>
 bool BinarySearchTree<T>::Insert(const T& value)
 {
-    if (Empty()) {
-        root = std::make_unique<Node>(value);
-        return true;
-    }
+    std::unique_ptr<Node>* current = &root;
 
-    Node* current = root.get();
-    while (true) {
-        if (value == current->value) {
+    while (*current != nullptr) {
+        if (value == (*current)->value) {
             return false;
         }
 
-        if (value < current->value) {
-            if (current->left != nullptr) {
-                current = current->left.get();
-                continue;
-            }
-            current->left = std::make_unique<Node>(value);
-            return true;
-        }
-
-        if (current->right != nullptr) {
-            current = current->right.get();
-            continue;
-        }
-        current->right = std::make_unique<Node>(value);
-        return true;
+        current = value < (*current)->value ? &(*current)->left : &(*current)->right;
     }
+
+    *current = std::make_unique<Node>(value);
+    return true;
 }
 
 template<typename T>
 bool BinarySearchTree<T>::Contains(const T& value) const
 {
-    Node* current = root.get();
+    const std::unique_ptr<Node>* current = &root;
 
-    while (current != nullptr) {
-        if (value == current->value) {
+    while (*current != nullptr) {
+        if (value == (*current)->value) {
             return true;
         }
 
-        if (value < current->value) {
-            current = current->left.get();
+        if (value < (*current)->value) {
+            current = &(*current)->left;
         } else {
-            current = current->right.get();
+            current = &(*current)->right;
         }
     }
 
@@ -162,12 +149,12 @@ std::optional<T> BinarySearchTree<T>::Min() const
         return {};
     };
 
-    Node* current = root.get();
-    while (current->left != nullptr) {
-        current = current->left.get();
+    const std::unique_ptr<Node>* current = &root;
+    while ((*current)->left != nullptr) {
+        current = &(*current)->left;
     }
 
-    return std::make_optional<T>(current->value);
+    return std::make_optional<T>((*current)->value);
 }
 
 template<typename T>
@@ -177,12 +164,12 @@ std::optional<T> BinarySearchTree<T>::Max() const
         return {};
     };
 
-    Node* current = root.get();
-    while (current->right != nullptr) {
-        current = current->right.get();
+    const std::unique_ptr<Node>* current = &root;
+    while ((*current)->right != nullptr) {
+        current = &(*current)->right;
     }
 
-    return std::make_optional<T>(current->value);
+    return std::make_optional<T>((*current)->value);
 }
 
 template<typename T>
@@ -222,34 +209,27 @@ size_t BinarySearchTree<T>::Height(Node* node) const
 template<typename T>
 bool BinarySearchTree<T>::Erase(const T& value)
 {
-    Node* current = root.get();
-    Node* prev = nullptr;
+    std::unique_ptr<Node>* current = &root;
 
-    while (current != nullptr && current->value != value) {
-        prev = current;
-        current = value < current->value ? current->left.get() : current->right.get();
+    while (*current != nullptr && (*current)->value != value) {
+        current = value < (*current)->value ? &(*current)->left : &(*current)->right;
     }
-    if (current == nullptr) return false;
+    if (*current == nullptr) return false;
 
-    if (current->left == nullptr) {
-        if (prev->left.get() == current) prev->left = std::move(current->right);
-        else prev->right = std::move(current->right);
+    if ((*current)->left == nullptr) {
+        *current = std::move((*current)->right);
         return true;
     }
-    if (current->right == nullptr) {
-        if (prev->left.get() == current) prev->left = std::move(current->left);
-        else prev->right = std::move(current->left);
+    if ((*current)->right == nullptr) {
+        *current = std::move((*current)->left);
         return true;
     }
 
-    Node* next = current->right.get();
-    Node* nextPrev = nullptr;
-    while (next->left != nullptr) {
-        nextPrev = next;
-        next = next->left.get();
+    std::unique_ptr<Node>* next = &(*current)->right;
+    while ((*next)->left != nullptr) {
+        next = &(*next)->left;
     }
-    current->value = next->value;
-    if (nextPrev == nullptr) current->right = std::move(next->right);
-    else nextPrev->left = std::move(next->right);
+    (*current)->value = (*next)->value;
+    *next = std::move((*next)->right);
     return true;
 }
